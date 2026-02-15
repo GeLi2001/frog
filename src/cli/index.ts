@@ -10,7 +10,7 @@ const program = new Command();
 
 program.name("frogo");
 program.description("Frogo v0 — incident investigator CLI");
-program.version("0.1.0");
+program.version("0.1.1");
 
 program.addCommand(configureCommand);
 program.addCommand(scanCommand);

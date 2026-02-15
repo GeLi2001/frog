@@ -15,7 +15,7 @@ async function readJson(filePath: string): Promise<FrogConfig | null> {
     const raw = await fs.readFile(filePath, "utf-8");
     const parsed: FrogConfig = JSON.parse(raw);
     return parsed;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

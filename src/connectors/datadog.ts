@@ -1,10 +1,14 @@
 import { Client } from "@modelcontextprotocol/sdk/client";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { Connector, FrogConfig, NormalizedEvent } from "../core/types.js";
+import { filterEventsByQuery } from "../core/query-filter.js";
 
 const DEFAULT_COMMAND = "datadog-mcp-server";
 const DEFAULT_QUERY = "status:error OR status:warn";
 const DEFAULT_LIMIT = 80;
+const DATADOG_API_KEY_ENV = "FROGO_DATADOG_API_KEY";
+const DATADOG_APP_KEY_ENV = "FROGO_DATADOG_APP_KEY";
+let warnedLegacyDatadogSecrets = false;
 
 interface RawDatadogLogEntry {
   id: string;
@@ -36,17 +40,27 @@ export class DatadogConnector implements Connector {
 
   constructor(private config: FrogConfig) {}
 
-  async fetchEvents(since: Date): Promise<NormalizedEvent[]> {
-    const datadog = this.config.datadog;
-    if (!datadog?.apiKey || !datadog?.appKey) {
+  async fetchEvents(since: Date, query?: string): Promise<NormalizedEvent[]> {
+    const datadog = this.config.datadog ?? ({} as NonNullable<FrogConfig["datadog"]>);
+    const apiKey = process.env[DATADOG_API_KEY_ENV]?.trim() ?? datadog?.apiKey?.trim();
+    const appKey = process.env[DATADOG_APP_KEY_ENV]?.trim() ?? datadog?.appKey?.trim();
+
+    if (!apiKey || !appKey) {
       return [];
+    }
+
+    if ((datadog?.apiKey || datadog?.appKey) && !warnedLegacyDatadogSecrets) {
+      console.warn(
+        `Datadog credentials loaded from config. Prefer ${DATADOG_API_KEY_ENV} and ${DATADOG_APP_KEY_ENV} env vars.`
+      );
+      warnedLegacyDatadogSecrets = true;
     }
 
     const command = datadog.command ?? DEFAULT_COMMAND;
     const args = datadog.args ?? [];
     const env: Record<string, string> = { ...process.env } as Record<string, string>;
-    env.DD_API_KEY = datadog.apiKey;
-    env.DD_APP_KEY = datadog.appKey;
+    env.DD_API_KEY = apiKey;
+    env.DD_APP_KEY = appKey;
     env.DD_SITE = datadog.site ?? env.DD_SITE ?? "datadoghq.com";
     if (datadog.logsSite) {
       env.DD_LOGS_SITE = datadog.logsSite;
@@ -91,9 +105,10 @@ export class DatadogConnector implements Connector {
         return [];
       }
 
-      return (parsed.data ?? [])
+      const normalized = (parsed.data ?? [])
         .map((entry) => this.normalizeEntry(entry))
         .filter((event) => event.timestamp.getTime() >= since.getTime());
+      return filterEventsByQuery(normalized, query);
     } catch (error) {
       console.error("Datadog MCP fetch failed:", error);
       return [];

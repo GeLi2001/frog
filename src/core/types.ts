@@ -87,17 +87,3 @@ export interface FrogConfig {
   };
   lastRunAt?: string;
 }
-
-export interface ExplainInput {
-  pattern: PatternId;
-  timeline: NormalizedEvent[];
-  evidence: NormalizedEvent[];
-  confidence: number;
-  rootCauseEvent: NormalizedEvent;
-  query?: string;
-}
-
-export interface ExplainOutput {
-  explanation: string;
-  suggestion: string;
-}

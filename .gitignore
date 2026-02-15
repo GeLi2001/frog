@@ -10,3 +10,4 @@ dist/
 .idea/
 coverage/
 npm-debug.log*
+frogo-*.tgz

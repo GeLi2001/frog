@@ -16,6 +16,11 @@ const DEFAULT_SYSTEM_PROMPT =
   "If the user says 'do a pass' or 'anything you can get', fetch a minimal overview: projects, recent runs, datasets, and prompts (if available) " +
   "using MCP tools, then summarize what you found.";
 const DATADOG_MCP_COMMAND = "datadog-mcp-server";
+const LANGSMITH_API_KEY_ENV = "FROGO_LANGSMITH_API_KEY";
+const DATADOG_API_KEY_ENV = "FROGO_DATADOG_API_KEY";
+const DATADOG_APP_KEY_ENV = "FROGO_DATADOG_APP_KEY";
+let warnedLegacyLangSmithSecret = false;
+let warnedLegacyDatadogSecrets = false;
 
 type ProviderContext = {
   languageModel: LanguageModel;
@@ -60,9 +65,9 @@ function prefersSse(error: unknown): boolean {
   return error.message.toLowerCase().includes("does not support http transport");
 }
 
-async function createLangSmithClient(langsmith: LangSmithConfig): Promise<MCPClient> {
+async function createLangSmithClient(langsmith: LangSmithConfig, apiKey: string): Promise<MCPClient> {
   const headers: Record<string, string> = {
-    "LANGSMITH-API-KEY": langsmith.apiKey!
+    "LANGSMITH-API-KEY": apiKey
   };
   if (langsmith.workspaceKey) {
     headers["LANGSMITH-WORKSPACE-ID"] = langsmith.workspaceKey;
@@ -96,12 +101,18 @@ async function createLangSmithClient(langsmith: LangSmithConfig): Promise<MCPCli
 
 async function buildLangSmithToolContext(config: FrogConfig): Promise<McpToolContext | null> {
   const langsmith = config.langsmith;
-  if (!langsmith?.apiKey || !langsmith?.mcpUrl) {
+  const apiKey = process.env[LANGSMITH_API_KEY_ENV]?.trim() ?? langsmith?.apiKey?.trim();
+  if (!apiKey || !langsmith?.mcpUrl) {
     return null;
   }
 
+  if (langsmith?.apiKey && !warnedLegacyLangSmithSecret) {
+    console.warn(`LangSmith API key loaded from config. Prefer ${LANGSMITH_API_KEY_ENV} env var.`);
+    warnedLegacyLangSmithSecret = true;
+  }
+
   try {
-    const client = await createLangSmithClient(langsmith);
+    const client = await createLangSmithClient(langsmith, apiKey);
 
     const tools = await client.tools();
     return { name: "LangSmith", tools, client };
@@ -169,14 +180,23 @@ async function buildTriggerMcpToolContext(config: FrogConfig): Promise<McpToolCo
   }
 }
 async function buildDatadogToolContext(config: FrogConfig): Promise<McpToolContext | null> {
-  const datadog = config.datadog;
-  if (!datadog?.apiKey || !datadog?.appKey) {
+  const datadog = config.datadog ?? ({} as NonNullable<FrogConfig["datadog"]>);
+  const apiKey = process.env[DATADOG_API_KEY_ENV]?.trim() ?? datadog?.apiKey?.trim();
+  const appKey = process.env[DATADOG_APP_KEY_ENV]?.trim() ?? datadog?.appKey?.trim();
+  if (!apiKey || !appKey) {
     return null;
   }
 
+  if ((datadog?.apiKey || datadog?.appKey) && !warnedLegacyDatadogSecrets) {
+    console.warn(
+      `Datadog credentials loaded from config. Prefer ${DATADOG_API_KEY_ENV} and ${DATADOG_APP_KEY_ENV} env vars.`
+    );
+    warnedLegacyDatadogSecrets = true;
+  }
+
   const env: Record<string, string> = {
-    DD_API_KEY: datadog.apiKey,
-    DD_APP_KEY: datadog.appKey,
+    DD_API_KEY: apiKey,
+    DD_APP_KEY: appKey,
     DD_SITE: datadog.site ?? process.env.DD_SITE ?? "datadoghq.com"
   };
 
@@ -253,10 +273,6 @@ async function cleanupMcpContexts(contexts: McpToolContext[]): Promise<void> {
       }
     })
   );
-}
-
-function cleanAssistantOutput(content: string): string {
-  return content.replace(/^Agent:\s*/i, "").trim();
 }
 
 export async function runAgentChat(): Promise<void> {

@@ -26,8 +26,14 @@ async function readOAuthState(): Promise<StoredOAuthState> {
 }
 
 async function writeOAuthState(state: StoredOAuthState): Promise<void> {
-  await fs.mkdir(path.dirname(SENTRY_OAUTH_PATH), { recursive: true });
-  await fs.writeFile(SENTRY_OAUTH_PATH, JSON.stringify(state, null, 2), "utf-8");
+  await fs.mkdir(path.dirname(SENTRY_OAUTH_PATH), { recursive: true, mode: 0o700 });
+  await fs.writeFile(SENTRY_OAUTH_PATH, JSON.stringify(state, null, 2), {
+    encoding: "utf-8",
+    mode: 0o600
+  });
+  await fs.chmod(SENTRY_OAUTH_PATH, 0o600).catch(() => {
+    /* ignore chmod failures */
+  });
 }
 
 function openUrl(url: string): void {

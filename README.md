@@ -44,7 +44,7 @@ Frogo reads from:
 - Global config: `~/.frogo/config.json`
 
 ### LLM provider
-Frogo does not store provider API keys in config. Set:
+Frogo does not store provider API keys in config. Agent chat uses:
 ```bash
 export FROGO_AI_API_KEY="..."
 ```
@@ -57,21 +57,30 @@ https://langsmith-mcp-server.onrender.com/mcp
 
 Frogo sends your key as the `LANGSMITH-API-KEY` header.
 
+Set:
+```bash
+export FROGO_LANGSMITH_API_KEY="..."
+```
+
 ### Datadog MCP
 Frogo can connect to a Datadog MCP server via stdio. Provide:
 ```json
 {
   "datadog": {
-    "apiKey": "...",
-    "appKey": "...",
     "command": "datadog-mcp-server"
   }
 }
 ```
 
+Set:
+```bash
+export FROGO_DATADOG_API_KEY="..."
+export FROGO_DATADOG_APP_KEY="..."
+```
+
 ## Philosophy
 - Deterministic pattern engine first
-- LLM explains, never decides root cause
+- Deterministic scans do not require LLM output
 - Normalized events only (no raw logs sent to the model)
 - Built to extend with more connectors and patterns
 

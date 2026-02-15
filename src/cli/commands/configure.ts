@@ -3,7 +3,7 @@ import prompts, { PromptObject } from "prompts";
 import { loadConfig } from "../../config/load.js";
 import { saveConfig } from "../../config/save.js";
 import { runSentryOAuth } from "../../mcp/sentry-auth.js";
-import type { FrogConfig, LangSmithConfig } from "../../core/types.js";
+import type { FrogConfig } from "../../core/types.js";
 
 const menuChoices = [
   { title: "Trigger.dev", value: "trigger" },
@@ -40,18 +40,6 @@ const triggerQuestions: PromptObject<string>[] = [
 const datadogQuestions: PromptObject<string>[] = [
   {
     type: "text",
-    name: "apiKey",
-    message: "Datadog API key for MCP",
-    initial: ""
-  },
-  {
-    type: "text",
-    name: "appKey",
-    message: "Datadog Application key",
-    initial: ""
-  },
-  {
-    type: "text",
     name: "site",
     message: "Datadog site",
     initial: "datadoghq.com"
@@ -83,12 +71,6 @@ const datadogQuestions: PromptObject<string>[] = [
 ];
 
 const langsmithQuestions: PromptObject<string>[] = [
-  {
-    type: "text",
-    name: "apiKey",
-    message: "LangSmith API key",
-    initial: ""
-  },
   {
     type: "text",
     name: "workspaceKey",
@@ -157,8 +139,6 @@ async function configureDatadog(config: FrogConfig): Promise<FrogConfig> {
   return {
     ...config,
     datadog: {
-      apiKey: trimOrUndefined(answers.apiKey),
-      appKey: trimOrUndefined(answers.appKey),
       site: trimOrUndefined(answers.site),
       logsSite: trimOrUndefined(answers.logsSite),
       metricsSite: trimOrUndefined(answers.metricsSite),
@@ -173,7 +153,6 @@ async function configureLangSmith(config: FrogConfig): Promise<FrogConfig> {
   return {
     ...config,
     langsmith: {
-      apiKey: trimOrUndefined(answers.apiKey),
       workspaceKey: trimOrUndefined(answers.workspaceKey),
       mcpUrl: trimOrUndefined(answers.mcpUrl)
     }
@@ -208,11 +187,12 @@ async function showConfig(config: FrogConfig) {
   console.log(JSON.stringify(config, null, 2));
 }
 
-async function configure(cmd: Command) {
+async function configure() {
   let config = await loadConfig();
   console.log("🐸 Frog configure — pick an integration to update");
 
-  while (true) {
+  let done = false;
+  while (!done) {
     const { choice } = (await promptCredentials<Record<string, string>>([
       {
         type: "select",
@@ -224,13 +204,15 @@ async function configure(cmd: Command) {
 
     if (!choice) {
       console.log("Configuration aborted.");
-      break;
+      done = true;
+      continue;
     }
 
     if (choice === "done") {
       await saveConfig(config);
       console.log("🐸 Configuration saved.");
-      break;
+      done = true;
+      continue;
     }
 
     if (choice === "show") {
@@ -257,11 +239,13 @@ async function configure(cmd: Command) {
         config = await configureDatadog(config);
         await saveConfig(config);
         console.log("✔ Datadog MCP config updated.");
+        console.log("Set FROGO_DATADOG_API_KEY and FROGO_DATADOG_APP_KEY in your shell or .env.");
         break;
       case "langsmith":
         config = await configureLangSmith(config);
         await saveConfig(config);
         console.log("✔ LangSmith MCP config updated.");
+        console.log("Set FROGO_LANGSMITH_API_KEY in your shell or .env.");
         break;
       case "sentry":
         config = await configureSentry(config);
@@ -291,4 +275,4 @@ async function configure(cmd: Command) {
 
 export const configureCommand = new Command("configure")
   .description("connect integrations and save config")
-  .action(async () => configure(new Command()));
+  .action(async () => configure());

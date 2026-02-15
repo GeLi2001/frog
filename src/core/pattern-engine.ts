@@ -19,10 +19,6 @@ export function matchPattern(cluster: IncidentCluster): PatternMatch | null {
 
 function matchServerlessTimeoutCascade(cluster: IncidentCluster): PatternMatch | null {
   const { triggerEvent, cascade } = cluster;
-  if (triggerEvent.source !== "vercel") {
-    return null;
-  }
-
   if (!triggerEvent.type.toLowerCase().includes("timeout")) {
     return null;
   }

@@ -1,5 +1,4 @@
 import { loadConfig } from "../config/load.js";
-import { VercelConnector } from "../connectors/vercel.js";
 import { TriggerConnector } from "../connectors/trigger.js";
 import { LocalConnector } from "../connectors/local.js";
 import { DatadogConnector } from "../connectors/datadog.js";
@@ -23,7 +22,6 @@ export async function runInvestigation(options: InvestigationOptions = {}): Prom
   const windowMinutes = options.windowMinutes ?? DEFAULT_WINDOW_MINUTES;
   const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
   const connectors = [
-    new VercelConnector(config),
     new TriggerConnector(config),
     new LocalConnector(config),
     new DatadogConnector(config)

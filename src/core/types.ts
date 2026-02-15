@@ -1,4 +1,4 @@
-export type ConnectorSource = "vercel" | "trigger" | "datadog" | "local" | "langsmith";
+export type ConnectorSource = "trigger" | "datadog" | "local" | "langsmith" | "sentry";
 
 export interface NormalizedEvent {
   source: ConnectorSource;
@@ -54,6 +54,17 @@ export interface LangSmithConfig {
   toolFilters?: string[];
 }
 
+export interface SentryConfig {
+  mcpUrl?: string;
+  command?: string;
+  args?: string[];
+}
+
+export interface TriggerMcpConfig {
+  command?: string;
+  args?: string[];
+}
+
 export interface LLMProviderConfig {
   provider?: string;
   endpoint?: string;
@@ -63,13 +74,13 @@ export interface LLMProviderConfig {
 }
 
 export interface FrogConfig {
-  vercelToken?: string;
   triggerToken?: string;
+  triggerMcp?: TriggerMcpConfig;
   datadog?: DatadogConfig;
   langsmith?: LangSmithConfig;
+  sentry?: SentryConfig;
   llmProvider?: LLMProviderConfig;
   detected?: {
-    vercel?: boolean;
     trigger?: boolean;
     env?: boolean;
     aws?: boolean;

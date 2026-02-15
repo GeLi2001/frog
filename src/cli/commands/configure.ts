@@ -2,13 +2,14 @@ import { Command } from "commander";
 import prompts, { PromptObject } from "prompts";
 import { loadConfig } from "../../config/load.js";
 import { saveConfig } from "../../config/save.js";
+import { runSentryOAuth } from "../../mcp/sentry-auth.js";
 import type { FrogConfig, LangSmithConfig } from "../../core/types.js";
 
 const menuChoices = [
-  { title: "Vercel", value: "vercel" },
   { title: "Trigger.dev", value: "trigger" },
   { title: "Datadog", value: "datadog" },
   { title: "LangSmith", value: "langsmith" },
+  { title: "Sentry", value: "sentry" },
   { title: "LLM provider", value: "llmProvider" },
   { title: "Show configuration", value: "show" },
   { title: "Done", value: "done" }
@@ -21,21 +22,18 @@ const promptCredentials = async <T extends Record<string, string | undefined>>(
   return answers;
 };
 
-const vqlQuestions: PromptObject<string>[] = [
-  {
-    type: "text",
-    name: "vercelToken",
-    message: "Vercel token",
-    initial: ""
-  }
-];
-
 const triggerQuestions: PromptObject<string>[] = [
   {
     type: "text",
-    name: "triggerToken",
-    message: "Trigger.dev API key",
-    initial: ""
+    name: "triggerCommand",
+    message: "Trigger MCP command",
+    initial: "npx"
+  },
+  {
+    type: "text",
+    name: "triggerArgs",
+    message: "Trigger MCP args",
+    initial: "trigger.dev@latest mcp"
   }
 ];
 
@@ -102,6 +100,15 @@ const langsmithQuestions: PromptObject<string>[] = [
     name: "mcpUrl",
     message: "LangSmith MCP URL",
     initial: "https://langsmith-mcp-server.onrender.com/mcp"
+  }
+];
+
+const sentryQuestions: PromptObject<string>[] = [
+  {
+    type: "text",
+    name: "mcpUrl",
+    message: "Sentry MCP URL",
+    initial: "https://mcp.sentry.dev/mcp"
   }
 ];
 
@@ -173,6 +180,16 @@ async function configureLangSmith(config: FrogConfig): Promise<FrogConfig> {
   };
 }
 
+async function configureSentry(config: FrogConfig): Promise<FrogConfig> {
+  const answers = await promptCredentials<Record<string, string>>(sentryQuestions);
+  return {
+    ...config,
+    sentry: {
+      mcpUrl: trimOrUndefined(answers.mcpUrl)
+    }
+  };
+}
+
 async function configureLLMProvider(config: FrogConfig): Promise<FrogConfig> {
   const answers = await promptCredentials<Record<string, string>>(llmProviderQuestions);
   return {
@@ -222,21 +239,19 @@ async function configure(cmd: Command) {
     }
 
     switch (choice) {
-      case "vercel":
-        config = {
-          ...config,
-          vercelToken: trimOrUndefined((await promptCredentials<Record<string, string>>(vqlQuestions)).vercelToken)
-        };
-        await saveConfig(config);
-        console.log("✔ Vercel token updated.");
-        break;
       case "trigger":
-        config = {
-          ...config,
-          triggerToken: trimOrUndefined((await promptCredentials<Record<string, string>>(triggerQuestions)).triggerToken)
-        };
+        {
+          const answers = await promptCredentials<Record<string, string>>(triggerQuestions);
+          config = {
+            ...config,
+            triggerMcp: {
+              command: trimOrUndefined(answers.triggerCommand),
+              args: answers.triggerArgs ? answers.triggerArgs.split(" ").filter(Boolean) : undefined
+            }
+          };
+        }
         await saveConfig(config);
-        console.log("✔ Trigger.dev API key updated.");
+        console.log("✔ Trigger MCP config updated.");
         break;
       case "datadog":
         config = await configureDatadog(config);
@@ -247,6 +262,20 @@ async function configure(cmd: Command) {
         config = await configureLangSmith(config);
         await saveConfig(config);
         console.log("✔ LangSmith MCP config updated.");
+        break;
+      case "sentry":
+        config = await configureSentry(config);
+        await saveConfig(config);
+        console.log("✔ Sentry MCP config updated.");
+        if (config.sentry?.mcpUrl) {
+          console.log("Opening browser for Sentry OAuth...");
+          try {
+            await runSentryOAuth(config.sentry.mcpUrl);
+            console.log("✔ Sentry OAuth completed.");
+          } catch (error) {
+            console.error("Sentry OAuth failed:", error);
+          }
+        }
         break;
       case "llmProvider":
         config = await configureLLMProvider(config);

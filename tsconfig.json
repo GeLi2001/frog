@@ -5,6 +5,7 @@
     "moduleResolution": "node16",
     "rootDir": "src",
     "outDir": "dist",
+    "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

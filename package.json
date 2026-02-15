@@ -1,6 +1,6 @@
 {
   "name": "frogo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Frog v0 incident investigation CLI",
   "main": "dist/cli/index.js",
   "bin": {
